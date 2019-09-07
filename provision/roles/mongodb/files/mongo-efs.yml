@@ -1,0 +1,7 @@
+version: '2.2'
+services:
+  mongo:
+    image: mongo:latest
+    command: mongod --storageEngine=wiredTiger
+    volumes:
+      - /mnt/efs:/data/db

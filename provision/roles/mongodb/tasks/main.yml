@@ -1,0 +1,113 @@
+---
+- name: Upgrade all packages to the latest version
+  become: yes
+  yum:
+    name: "*"
+    state: latest    
+- name: yum install packages
+  become: yes
+  yum:
+    name:
+      - glibc-devel
+      - gcc
+      - libstdc++
+      - libffi-devel
+      - zlib-devel
+      - make
+      - python
+      - python-devel
+      - python-pip
+      - git
+      - docker
+      - amazon-efs-utils
+    state: latest
+
+- name: pip install packages
+  become: yes
+  pip:
+    name:
+      - virtualenv
+      - docker-compose==1.22.0
+    state: latest
+
+- name: add user to docker group
+  user:
+      name: "{{ aws_user }}"
+      groups: docker
+  become: yes    
+
+- name: start docker
+  become: yes
+  service:
+    name: docker
+    state: restarted  
+
+- name: create app destination
+  file:
+    path: "/opt/alerts"
+    state: directory
+    mode: 0755
+    owner: "{{ aws_user }}"
+    group: "{{ aws_user }}"
+  become: yes
+
+- name: create EFS mount destination
+  file:
+    path: "/mnt/efs"
+    state: directory
+    mode: 0755
+    owner: "{{ aws_user }}"
+    group: "{{ aws_user }}"
+  become: yes
+
+- name: Mount EFS volume
+  mount:
+    path: /mnt/efs
+    src: "{{efs_filesystem_address}}:/"
+    fstype: nfs4
+    opts: nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2,noresvport
+    state: mounted
+  become: yes
+
+- name: set EFS perms
+  file:
+    path: "/mnt/efs"
+    state: directory
+    mode: 0755
+    owner: "{{ aws_user }}"
+    group: "{{ aws_user }}"
+  become: yes
+
+- name: clone repo
+  git:
+    repo: https://github.com/jeffbryner/urban-octo-couscous.git
+    dest: /opt/alerts
+    force: yes
+
+- name: copy mongo-efs docker override
+  copy:
+    src: "mongo-efs.yml"
+    dest: "/opt/alerts/mongo-efs.yml"
+    mode: 0644
+    owner: "{{ aws_user }}"
+    group: "{{ aws_user }}"
+
+- name: copy env docker file
+  copy:
+    src: "python.env"
+    dest: "/opt/alerts/python.env"
+    mode: 0644
+    owner: "{{ aws_user }}"
+    group: "{{ aws_user }}"
+
+- name: start docker compose
+  docker_service:
+    project_src: /opt/alerts
+    state: present
+    project_name: uoc
+    files:
+      - docker-compose.yml
+      - mongo-efs.yml
+    build: yes
+    pull: yes
+  become: yes  
