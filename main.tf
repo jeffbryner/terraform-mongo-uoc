@@ -176,7 +176,8 @@ resource "aws_iam_role_policy" "uoc_instance_policy" {
       "Action": [
       "glue:GetDatabase*",
       "glue:GetTable*",
-      "glue:GetPartitions"
+      "glue:GetPartitions",
+      "glue:BatchCreatePartition"
       ],
       "Effect": "Allow",
       "Resource": "*"
