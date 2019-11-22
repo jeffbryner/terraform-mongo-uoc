@@ -53,7 +53,7 @@ resource "aws_vpc" "mongo_uoc" {
   enable_dns_hostnames= "true"
 }
 resource "aws_internet_gateway" "mongo_uoc" {
-  vpc_id = "${aws_vpc.mongo_uoc.id}"
+  vpc_id = aws_vpc.mongo_uoc.id
 
   tags = {
     Name = "mongo_uoc"
@@ -63,7 +63,7 @@ resource "aws_internet_gateway" "mongo_uoc" {
 resource "aws_security_group" "mongo_uoc" {
   name        = "mongo_uoc"
   description = "Allow ssh and efs"
-  vpc_id      = "${aws_vpc.mongo_uoc.id}"
+  vpc_id      = aws_vpc.mongo_uoc.id
 
   ingress {
     # TLS (change to whatever ports you need)
@@ -95,16 +95,16 @@ resource "aws_security_group" "mongo_uoc" {
 }
 
 resource "aws_subnet" "mongo_uoc" {
-  vpc_id            = "${aws_vpc.mongo_uoc.id}"
-  availability_zone = "${var.availability_zone}"
+  vpc_id            = aws_vpc.mongo_uoc.id
+  availability_zone = var.availability_zone
   cidr_block        = "10.10.0.0/24"
 }
 
 resource "aws_route_table" "mongo_uoc" {
-  vpc_id = "${aws_vpc.mongo_uoc.id}"
+  vpc_id = aws_vpc.mongo_uoc.id
   route {
   cidr_block = "0.0.0.0/0"
-  gateway_id = "${aws_internet_gateway.mongo_uoc.id}"
+  gateway_id = aws_internet_gateway.mongo_uoc.id
 }
   tags = {
     Terraform   = "true"
@@ -114,8 +114,8 @@ resource "aws_route_table" "mongo_uoc" {
 }
 
 resource "aws_route_table_association" "mongo_uoc" {
-  subnet_id = "${aws_subnet.mongo_uoc.id}"
-  route_table_id = "${aws_route_table.mongo_uoc.id}"
+  subnet_id = aws_subnet.mongo_uoc.id
+  route_table_id = aws_route_table.mongo_uoc.id
 }
 
 resource "aws_efs_file_system" "mongo_fs" {
@@ -128,9 +128,9 @@ resource "aws_efs_file_system" "mongo_fs" {
   }
 }
 resource "aws_efs_mount_target" "mongo_fs" {
-  file_system_id = "${aws_efs_file_system.mongo_fs.id}"
-  subnet_id      = "${aws_subnet.mongo_uoc.id}"
-  security_groups = ["${aws_security_group.mongo_uoc.id}"]
+  file_system_id = aws_efs_file_system.mongo_fs.id
+  subnet_id      = aws_subnet.mongo_uoc.id
+  security_groups = [aws_security_group.mongo_uoc.id]
 }
 resource "aws_iam_role" "uoc_instance_role" {
   name = "uoc_instance_role"
@@ -154,12 +154,12 @@ EOF
 
 resource "aws_iam_instance_profile" "uoc_instance_profile" {
   name = "uoc_instance_profile"
-  role = "${aws_iam_role.uoc_instance_role.name}"
+  role = aws_iam_role.uoc_instance_role.name
 }
 
 resource "aws_iam_role_policy" "uoc_instance_policy" {
   name = "uoc_instance_policy"
-  role = "${aws_iam_role.uoc_instance_role.id}"
+  role = aws_iam_role.uoc_instance_role.id
 
   policy = <<EOF
 {
@@ -196,14 +196,14 @@ resource "aws_iam_role_policy" "uoc_instance_policy" {
 EOF
 }
 resource "aws_instance" "mongo_instance"{
-  ami                    = "${data.aws_ami.amazon-linux-2-ami.id}"
-  instance_type          = "${var.instance_type}"
-  key_name               = "${var.key_name}"
+  ami                    = data.aws_ami.amazon-linux-2-ami.id
+  instance_type          = var.instance_type
+  key_name               = var.key_name
   monitoring             = false
-  vpc_security_group_ids = ["${aws_security_group.mongo_uoc.id}"]
-  subnet_id              = "${aws_subnet.mongo_uoc.id}"
+  vpc_security_group_ids = [aws_security_group.mongo_uoc.id]
+  subnet_id              = aws_subnet.mongo_uoc.id
   associate_public_ip_address = true
-  iam_instance_profile = "${aws_iam_instance_profile.uoc_instance_profile.name}"
+  iam_instance_profile = aws_iam_instance_profile.uoc_instance_profile.name
 
 
   tags = {
@@ -213,12 +213,12 @@ resource "aws_instance" "mongo_instance"{
   }
   # ansible connection information
   connection {
-    user        = "${var.aws_user}"
-    host        = "${self.public_ip}"
-    private_key = "${file("${var.private_key_path}")}"
+    user        = var.aws_user
+    host        = self.public_ip
+    private_key = file(var.private_key_path)
   }  
   provisioner "file" {
-    source      = "${path.module}/provision/wait-for-cloud-init.sh"
+    source      = "path.module/provision/wait-for-cloud-init.sh"
     destination = "/tmp/wait-for-cloud-init.sh"
   }
 
@@ -232,12 +232,12 @@ resource "aws_instance" "mongo_instance"{
   provisioner "ansible" {
     plays {
       playbook{
-        file_path = "${path.module}/provision/playbook.yaml"
+        file_path = "path.module/provision/playbook.yaml"
       } 
       # https://docs.ansible.com/ansible/2.4/intro_inventory.html#hosts-and-groups
       groups = ["db-mongodb"]
       extra_vars = {
-            efs_filesystem_address = "${aws_efs_file_system.mongo_fs.dns_name}"
+            efs_filesystem_address = aws_efs_file_system.mongo_fs.dns_name
       }      
     }
   }  
