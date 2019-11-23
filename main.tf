@@ -218,7 +218,7 @@ resource "aws_instance" "mongo_instance"{
     private_key = file(var.private_key_path)
   }  
   provisioner "file" {
-    source      = "path.module/provision/wait-for-cloud-init.sh"
+    source      = "provision/wait-for-cloud-init.sh"
     destination = "/tmp/wait-for-cloud-init.sh"
   }
 
@@ -232,7 +232,7 @@ resource "aws_instance" "mongo_instance"{
   provisioner "ansible" {
     plays {
       playbook{
-        file_path = "path.module/provision/playbook.yaml"
+        file_path = "provision/playbook.yaml"
       } 
       # https://docs.ansible.com/ansible/2.4/intro_inventory.html#hosts-and-groups
       groups = ["db-mongodb"]
