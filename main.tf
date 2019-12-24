@@ -9,6 +9,19 @@ provider "aws" {
   region                  = "us-west-2"
   profile                 = "default"
 }
+data "aws_caller_identity" "current" {}
+
+output "account_id" {
+  value = "${data.aws_caller_identity.current.account_id}"
+}
+
+output "caller_arn" {
+  value = "${data.aws_caller_identity.current.arn}"
+}
+
+output "caller_user" {
+  value = "${data.aws_caller_identity.current.user_id}"
+}
 
 data "aws_ami" "ubuntu" {
   most_recent = true
@@ -48,6 +61,69 @@ data "aws_ami" "amazon-linux-2-ami" {
     values = ["x86_64"]
   } 
 }
+
+resource "aws_s3_bucket" "uoc_input_bucket" {
+  bucket = "uoc-${data.aws_caller_identity.current.account_id}-input-bucket"
+  acl    = "private"
+
+  versioning {
+    enabled = false
+  }
+
+  lifecycle_rule {
+    enabled = true
+
+    transition {
+      days          = 30
+      storage_class = "STANDARD_IA"
+    }
+
+    expiration {
+      days = 90
+    }
+  }
+}
+
+resource "aws_s3_bucket_public_access_block" "uoc_input_bucket" {
+  bucket = aws_s3_bucket.uoc_input_bucket.id
+
+  block_public_acls   = true
+  block_public_policy = true
+  ignore_public_acls  = true
+  restrict_public_buckets = true
+}
+
+resource "aws_s3_bucket" "uoc_output_bucket" {
+  bucket = "uoc-${data.aws_caller_identity.current.account_id}-output-bucket"
+  acl    = "private"
+
+  versioning {
+    enabled = false
+  }
+
+  lifecycle_rule {
+    enabled = true
+
+    transition {
+      days          = 90
+      storage_class = "STANDARD_IA"
+    }
+
+    expiration {
+      days = 360
+    }
+  }
+}
+
+resource "aws_s3_bucket_public_access_block" "uoc_output_bucket" {
+  bucket = aws_s3_bucket.uoc_output_bucket.id
+
+  block_public_acls   = true
+  block_public_policy = true
+  ignore_public_acls  = true
+  restrict_public_buckets = true
+}
+
 resource "aws_vpc" "mongo_uoc" {
   cidr_block = "10.10.0.0/24"
   enable_dns_hostnames= "true"
