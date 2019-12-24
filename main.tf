@@ -124,6 +124,92 @@ resource "aws_s3_bucket_public_access_block" "uoc_output_bucket" {
   restrict_public_buckets = true
 }
 
+resource "aws_iam_role" "uoc-firehose-role" {
+  name = "uoc-firehose-role"
+
+  assume_role_policy = <<EOF
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Action": "sts:AssumeRole",
+      "Principal": {
+        "Service": "firehose.amazonaws.com"
+      },
+      "Effect": "Allow",
+      "Sid": ""
+    }
+  ]
+}
+EOF
+}
+
+resource "aws_iam_role_policy" "uoc-firehose-policy" {
+  name = "uoc-firehose-policy"
+  role = aws_iam_role.uoc-firehose-role.id
+
+  policy = <<EOF
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "",
+      "Effect": "Allow",
+      "Action": [
+        "glue:GetTable",
+        "glue:GetTableVersion",
+        "glue:GetTableVersions"
+      ],
+      "Resource": "*"
+    },    
+    {
+      "Action": [
+        "s3:*"
+      ],
+      "Effect": "Allow",
+      "Resource": [
+        "${aws_s3_bucket.uoc_output_bucket.arn}",
+        "${aws_s3_bucket.uoc_output_bucket.arn}/*"
+      ]
+    },        
+    {
+      "Sid": "",
+      "Effect": "Allow",
+      "Action": [
+          "logs:PutLogEvents"
+      ],
+      "Resource": [
+          "arn:aws:logs:us-west-2:${data.aws_caller_identity.current.account_id}:log-group:/aws/kinesisfirehose/uoc-firehose-logging:log-stream:*"
+      ]
+    },
+    {
+      "Sid": "",
+      "Effect": "Allow",
+      "Action": [
+          "kinesis:DescribeStream",
+          "kinesis:GetShardIterator",
+          "kinesis:GetRecords"
+      ],
+      "Resource": "arn:aws:kinesis:us-west-2:${data.aws_caller_identity.current.account_id}:stream/uoc-firehose-logging"
+    }   
+  ]
+}
+EOF
+}
+
+resource "aws_kinesis_firehose_delivery_stream" "uoc-firehose-logging" {
+  name = "uoc-firehose-logging"
+  destination = "extended_s3"
+  extended_s3_configuration {
+    bucket_arn = aws_s3_bucket.uoc_output_bucket.arn
+    buffer_interval = 60
+    buffer_size = 1
+    compression_format = "UNCOMPRESSED"
+    error_output_prefix = "errors"
+    role_arn = aws_iam_role.uoc-firehose-role.arn
+  }
+}
+
 resource "aws_vpc" "mongo_uoc" {
   cidr_block = "10.10.0.0/24"
   enable_dns_hostnames= "true"
