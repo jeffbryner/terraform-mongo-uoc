@@ -252,22 +252,22 @@ resource "aws_glue_catalog_table" "uoc_events_table" {
   }
 
   partition_keys{
-    name = "partition_0" 
+    name = "year" 
     type = "string"
   }
 
   partition_keys{
-    name = "partition_1" 
+    name = "month" 
     type = "string"
   }
 
   partition_keys{
-    name = "partition_2" 
+    name = "day" 
     type = "string"
   }
 
   partition_keys{
-    name = "partition_3" 
+    name = "hour" 
     type = "string"
   }
 
