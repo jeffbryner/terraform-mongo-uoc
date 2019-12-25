@@ -251,6 +251,26 @@ resource "aws_glue_catalog_table" "uoc_events_table" {
     EXTERNAL = "TRUE"
   }
 
+  partition_keys{
+    name = "partition_0" 
+    type = "string"
+  }
+
+  partition_keys{
+    name = "partition_1" 
+    type = "string"
+  }
+
+  partition_keys{
+    name = "partition_2" 
+    type = "string"
+  }
+
+  partition_keys{
+    name = "partition_3" 
+    type = "string"
+  }
+
   storage_descriptor {
     location      = "s3://${aws_s3_bucket.uoc_output_bucket.id}/"
     input_format = "org.apache.hadoop.mapred.TextInputFormat"
