@@ -210,6 +210,105 @@ resource "aws_kinesis_firehose_delivery_stream" "uoc-firehose-logging" {
   }
 }
 
+
+resource "aws_s3_bucket" "uoc_athena_bucket" {
+  bucket = "${data.aws_caller_identity.current.account_id}-aws-athena-query-results-${data.aws_region.current.name}"
+  acl    = "private"
+
+  versioning {
+    enabled = false
+  }
+
+  lifecycle_rule {
+    enabled = true
+
+    expiration {
+      days = 30
+    }
+  }
+}
+
+resource "aws_s3_bucket_public_access_block" "uoc_athena_bucket" {
+  bucket = aws_s3_bucket.uoc_athena_bucket.id
+
+  block_public_acls   = true
+  block_public_policy = true
+  ignore_public_acls  = true
+  restrict_public_buckets = true
+}
+
+resource "aws_athena_database" "events" {
+  name   = "events"
+  bucket = aws_s3_bucket.uoc_athena_bucket.id
+}
+
+resource "aws_glue_catalog_table" "uoc_events_table" {
+  name          = "events"
+  database_name = aws_athena_database.events.name
+  table_type    = "EXTERNAL_TABLE"
+
+  parameters = {
+    EXTERNAL = "TRUE"
+  }
+
+  storage_descriptor {
+    location      = "s3://${aws_s3_bucket.uoc_output_bucket.id}/"
+    input_format = "org.apache.hadoop.mapred.TextInputFormat"
+    output_format = "org.apache.hadoop.hive.ql.io.IgnoreKeyTextOutputFormat"
+
+    ser_de_info {
+      name                  = "json-serde"
+      serialization_library = "org.openx.data.jsonserde.JsonSerDe"
+    }
+
+    columns {
+      name = "_base64"
+      type = "string"
+    }
+
+    columns {
+      name = "utctimestamp"
+      type = "string"
+    }
+
+    columns {
+      name = "severity"
+      type = "string"
+    }
+
+    columns {
+      name = "summary"
+      type = "string"
+    }
+
+    columns {
+      name = "category"
+      type = "string"
+    }    
+
+    columns {
+      name = "source"
+      type = "string"
+    }    
+
+    columns {
+      name = "tags"
+      type = "array<string>"
+    }
+
+    columns {
+      name = "plugins"
+      type = "array<string>"
+    }    
+
+    columns {
+      name = "details"
+      type = "string"
+    }    
+
+  }
+}
+
 resource "aws_vpc" "mongo_uoc" {
   cidr_block = "10.10.0.0/24"
   enable_dns_hostnames= "true"
