@@ -283,6 +283,11 @@ resource "aws_glue_catalog_table" "uoc_events_table" {
     }
 
     columns {
+      name = "eventid"
+      type = "string"
+    }
+    
+    columns {
       name = "_base64"
       type = "string"
     }
