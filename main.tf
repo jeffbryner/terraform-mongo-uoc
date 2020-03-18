@@ -60,7 +60,7 @@ data "aws_ami" "amazon-linux-2-ami" {
   filter {
     name   = "architecture"
     values = ["x86_64"]
-  } 
+  }
 }
 
 resource "aws_s3_bucket" "uoc_input_bucket" {
@@ -162,7 +162,7 @@ resource "aws_iam_role_policy" "uoc-firehose-policy" {
         "glue:GetTableVersions"
       ],
       "Resource": "*"
-    },    
+    },
     {
       "Action": [
         "s3:*"
@@ -172,7 +172,7 @@ resource "aws_iam_role_policy" "uoc-firehose-policy" {
         "${aws_s3_bucket.uoc_output_bucket.arn}",
         "${aws_s3_bucket.uoc_output_bucket.arn}/*"
       ]
-    },        
+    },
     {
       "Sid": "",
       "Effect": "Allow",
@@ -192,7 +192,7 @@ resource "aws_iam_role_policy" "uoc-firehose-policy" {
           "kinesis:GetRecords"
       ],
       "Resource": "arn:aws:kinesis:us-west-2:${data.aws_caller_identity.current.account_id}:stream/uoc-firehose-logging"
-    }   
+    }
   ]
 }
 EOF
@@ -205,7 +205,7 @@ resource "aws_kinesis_firehose_delivery_stream" "uoc-firehose-logging" {
     bucket_arn = aws_s3_bucket.uoc_output_bucket.arn
     buffer_interval = 60
     buffer_size = 1
-    compression_format = "UNCOMPRESSED"
+    compression_format = "GZIP"
     error_output_prefix = "errors"
     role_arn = aws_iam_role.uoc-firehose-role.arn
   }
@@ -253,22 +253,22 @@ resource "aws_glue_catalog_table" "uoc_events_table" {
   }
 
   partition_keys{
-    name = "year" 
+    name = "year"
     type = "string"
   }
 
   partition_keys{
-    name = "month" 
+    name = "month"
     type = "string"
   }
 
   partition_keys{
-    name = "day" 
+    name = "day"
     type = "string"
   }
 
   partition_keys{
-    name = "hour" 
+    name = "hour"
     type = "string"
   }
 
@@ -286,7 +286,7 @@ resource "aws_glue_catalog_table" "uoc_events_table" {
       name = "eventid"
       type = "string"
     }
-    
+
     columns {
       name = "_base64"
       type = "string"
@@ -310,12 +310,12 @@ resource "aws_glue_catalog_table" "uoc_events_table" {
     columns {
       name = "category"
       type = "string"
-    }    
+    }
 
     columns {
       name = "source"
       type = "string"
-    }    
+    }
 
     columns {
       name = "tags"
@@ -325,12 +325,12 @@ resource "aws_glue_catalog_table" "uoc_events_table" {
     columns {
       name = "plugins"
       type = "array<string>"
-    }    
+    }
 
     columns {
       name = "details"
       type = "string"
-    }    
+    }
 
   }
 }
@@ -395,7 +395,7 @@ resource "aws_route_table" "mongo_uoc" {
 }
   tags = {
     Terraform   = "true"
-    Environment = "dev"    
+    Environment = "dev"
     Name = "mongo_uoc"
   }
 }
@@ -410,7 +410,7 @@ resource "aws_efs_file_system" "mongo_fs" {
 
   tags = {
     Terraform   = "true"
-    Environment = "dev"    
+    Environment = "dev"
     Name = "mongo_uoc"
   }
 }
@@ -477,7 +477,7 @@ resource "aws_iam_role_policy" "uoc_instance_policy" {
       ],
       "Effect": "Allow",
       "Resource": "*"
-    }      
+    }
   ]
 }
 EOF
@@ -503,7 +503,7 @@ resource "aws_instance" "mongo_instance"{
     user        = var.aws_user
     host        = self.public_ip
     private_key = file(var.private_key_path)
-  }  
+  }
   provisioner "file" {
     source      = "provision/wait-for-cloud-init.sh"
     destination = "/tmp/wait-for-cloud-init.sh"
@@ -520,12 +520,12 @@ resource "aws_instance" "mongo_instance"{
     plays {
       playbook{
         file_path = "provision/playbook.yaml"
-      } 
+      }
       # https://docs.ansible.com/ansible/2.4/intro_inventory.html#hosts-and-groups
       groups = ["db-mongodb"]
       extra_vars = {
             efs_filesystem_address = aws_efs_file_system.mongo_fs.dns_name
-      }      
+      }
     }
-  }  
+  }
 }
