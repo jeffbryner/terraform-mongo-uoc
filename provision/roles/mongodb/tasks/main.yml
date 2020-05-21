@@ -3,7 +3,7 @@
   become: yes
   yum:
     name: "*"
-    state: latest    
+    state: latest
 - name: yum install packages
   become: yes
   yum:
@@ -34,13 +34,13 @@
   user:
       name: "{{ aws_user }}"
       groups: docker
-  become: yes    
+  become: yes
 
 - name: start docker
   become: yes
   service:
     name: docker
-    state: restarted  
+    state: restarted
 
 - name: create app destination
   file:
@@ -110,4 +110,4 @@
       - mongo-efs.yml
     build: yes
     pull: yes
-  become: yes  
+  become: yes

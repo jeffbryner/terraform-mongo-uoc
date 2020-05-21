@@ -527,6 +527,9 @@ resource "aws_instance" "mongo_instance"{
             efs_filesystem_address = aws_efs_file_system.mongo_fs.dns_name
       }
     }
+    remote {
+      skip_install = false
+    }
   }
 }
 
