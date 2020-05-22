@@ -539,12 +539,28 @@ resource "aws_instance" "mongo_instance"{
   }
 }
 
+resource "aws_sagemaker_notebook_instance_lifecycle_configuration" "lc" {
+  name      = "uoc-libraries"
+  on_create = base64encode(<<EOT
+#!/bin/bash
+set -e
+sudo -u ec2-user -i <<'EOF'
+source /home/ec2-user/anaconda3/bin/activate python3
+pip install --upgrade pymongo
+source /home/ec2-user/anaconda3/bin/deactivate
+EOF
+EOT
+)
+}
+
+
 resource "aws_sagemaker_notebook_instance" "uoc-notebooks" {
     instance_type   = "ml.t2.medium"
     name            = "uoc-notebooks"
     role_arn        = "arn:aws:iam::717455710680:role/service-role/AmazonSageMaker-ExecutionRole-20200521T101682"
     security_groups = [aws_security_group.mongo_uoc.id]
     subnet_id       = aws_subnet.mongo_uoc.id
+    lifecycle_config_name = "uoc-libraries"
     tags            = {
         "name" = "uoc"
     }
