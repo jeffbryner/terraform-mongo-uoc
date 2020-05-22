@@ -353,7 +353,7 @@ resource "aws_security_group" "mongo_uoc" {
   vpc_id      = aws_vpc.mongo_uoc.id
 
   ingress {
-    # TLS (change to whatever ports you need)
+    # ssh
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
@@ -361,11 +361,17 @@ resource "aws_security_group" "mongo_uoc" {
     # Opening to 0.0.0.0/0 can lead to security vulnerabilities.
     cidr_blocks = ["0.0.0.0/0"]
   }
-
-  ingress {
-      # TLS (change to whatever ports you need)
+ ingress {
+   # efs
       from_port   = 2049
       to_port     = 2049
+      protocol    = "tcp"
+      self = true
+    }
+  ingress {
+    # mongo
+      from_port   = 0
+      to_port     = 27017
       protocol    = "tcp"
       self = true
     }
