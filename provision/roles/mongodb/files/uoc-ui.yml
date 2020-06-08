@@ -1,0 +1,14 @@
+version: '2.2'
+services:
+
+    flask:
+        image: uoc-flask
+        expose:
+            - 5000
+
+    nginx:
+        image: uoc-nginx
+        ports:
+            - 80:80
+        depends_on:
+            - flask

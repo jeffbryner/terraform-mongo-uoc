@@ -78,16 +78,46 @@
     group: "{{ aws_user }}"
   become: yes
 
-- name: clone repo
+- name: clone UOC repo
   git:
     repo: https://github.com/jeffbryner/urban-octo-couscous.git
     dest: /opt/alerts
     force: yes
 
+- name: clone UOC-ui repo
+  git:
+    repo: https://github.com/jeffbryner/uoc-ui.git
+    dest: /opt/uoc-ui
+    force: yes
+
+- name: build UOC-flask image
+  docker_image:
+    name: uoc-flask
+    build:
+      path: /opt/uoc-ui
+      dockerfile: docker/flask/Dockerfile-flask
+    source: build
+
+- name: build UOC-nginx image
+  docker_image:
+    name: uoc-nginx
+    build:
+      path: /opt/uoc-ui
+      dockerfile: docker/nginx/Dockerfile-nginx
+    source: build
+
 - name: copy mongo-efs docker override
   copy:
     src: "mongo-efs.yml"
     dest: "/opt/alerts/mongo-efs.yml"
+    mode: 0644
+    owner: "{{ aws_user }}"
+    group: "{{ aws_user }}"
+
+- name: copy uoc-ui docker override
+  copy:
+    src: "uoc-ui.yml"
+    dest: "/opt/alerts/uoc-ui.yml"
     mode: 0644
     owner: "{{ aws_user }}"
     group: "{{ aws_user }}"
@@ -101,13 +131,14 @@
     group: "{{ aws_user }}"
 
 - name: start docker compose
-  docker_service:
+  docker_compose:
     project_src: /opt/alerts
     state: present
     project_name: uoc
     files:
       - docker-compose.yml
       - mongo-efs.yml
+      - uoc-ui.yml
     build: yes
     pull: yes
   become: yes
