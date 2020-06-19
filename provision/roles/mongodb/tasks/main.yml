@@ -90,12 +90,22 @@
     dest: /opt/uoc-ui
     force: yes
 
+- name: build UOC-mongo image
+  docker_image:
+    name: uoc-mongo
+    build:
+      path: /opt/uoc-ui
+      dockerfile: docker/mongo/Dockerfile-mongo
+      pull: yes
+    source: build
+
 - name: build UOC-flask image
   docker_image:
     name: uoc-flask
     build:
       path: /opt/uoc-ui
       dockerfile: docker/flask/Dockerfile-flask
+      pull: yes
     source: build
 
 - name: build UOC-nginx image
@@ -104,6 +114,7 @@
     build:
       path: /opt/uoc-ui
       dockerfile: docker/nginx/Dockerfile-nginx
+      pull: yes
     source: build
 
 - name: copy mongo-efs docker override
@@ -140,5 +151,5 @@
       - mongo-efs.yml
       - uoc-ui.yml
     build: yes
-    pull: yes
+    pull: no
   become: yes
