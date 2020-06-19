@@ -1,7 +1,10 @@
 version: '2.2'
 services:
   mongo:
-    image: mongo:latest
-    command: mongod --storageEngine=wiredTiger
+    image: uoc-mongo:latest
+    command: mongod -f /etc/mongod.conf
+    hostname: mongo
+    ports:
+      - "27017:27017"
     volumes:
       - /mnt/efs:/data/db
