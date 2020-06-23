@@ -44,6 +44,7 @@ data "aws_ami" "ubuntu" {
 
   owners = ["099720109477"] # Canonical
 }
+
 data "aws_ami" "amazon-linux-2-ami" {
   most_recent = true
   owners = ["amazon"]
@@ -420,11 +421,13 @@ resource "aws_efs_file_system" "mongo_fs" {
     Name = "mongo_uoc"
   }
 }
+
 resource "aws_efs_mount_target" "mongo_fs" {
   file_system_id = aws_efs_file_system.mongo_fs.id
   subnet_id      = aws_subnet.mongo_uoc.id
   security_groups = [aws_security_group.mongo_uoc.id]
 }
+
 resource "aws_iam_role" "uoc_instance_role" {
   name = "uoc_instance_role"
 
@@ -488,6 +491,7 @@ resource "aws_iam_role_policy" "uoc_instance_policy" {
 }
 EOF
 }
+
 resource "aws_instance" "mongo_instance"{
   ami                    = data.aws_ami.amazon-linux-2-ami.id
   instance_type          = var.instance_type
@@ -498,18 +502,19 @@ resource "aws_instance" "mongo_instance"{
   associate_public_ip_address = true
   iam_instance_profile = aws_iam_instance_profile.uoc_instance_profile.name
 
-
   tags = {
     Terraform   = "true"
     Environment = "dev"
     Name = "mongo_uoc"
   }
+
   # ansible connection information
   connection {
     user        = var.aws_user
     host        = self.public_ip
     private_key = file(var.private_key_path)
   }
+
   provisioner "file" {
     source      = "provision/wait-for-cloud-init.sh"
     destination = "/tmp/wait-for-cloud-init.sh"
@@ -552,7 +557,6 @@ EOF
 EOT
 )
 }
-
 
 resource "aws_sagemaker_notebook_instance" "uoc-notebooks" {
     instance_type   = "ml.t2.medium"
