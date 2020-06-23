@@ -5,6 +5,8 @@ services:
         image: uoc-flask
         expose:
             - 5000
+        env_file:
+            - flask.env
 
     nginx:
         image: uoc-nginx
