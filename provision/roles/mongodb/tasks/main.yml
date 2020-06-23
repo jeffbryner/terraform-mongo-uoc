@@ -133,13 +133,22 @@
     owner: "{{ aws_user }}"
     group: "{{ aws_user }}"
 
-- name: copy env docker file
+- name: copy python env docker file
   copy:
     src: "python.env"
     dest: "/opt/alerts/python.env"
     mode: 0644
     owner: "{{ aws_user }}"
     group: "{{ aws_user }}"
+
+- name: copy flask env docker file
+  copy:
+    src: "flask.env"
+    dest: "/opt/alerts/flask.env"
+    mode: 0644
+    owner: "{{ aws_user }}"
+    group: "{{ aws_user }}"
+
 
 - name: start docker compose
   docker_compose:
