@@ -10,18 +10,6 @@ variable "instance_type" {
   default     = "t2.small"
 }
 
-variable "volume_size" {
-  type        = string
-  description = "Size of the DB storage volume."
-  default     = "100"
-}
-
-variable "security_groups" {
-  type        = list
-  description = "List of security group names."
-  default     = []
-}
-
 variable "key_name" {
   type        = string
   description = "Name of the key pair to provision the instance with."
@@ -33,8 +21,9 @@ variable "aws_user"{
   description = "aws instance user name to connect with"
   default     = "ec2-user"
 }
+
 variable "private_key_path"{
   type        = string
-  description = "path to the filename for the private key to be used by ansible"
+  description = "full path to the filename for the private key to be used by ansible"
   default     ="/Users/jeff/.ssh/jab.pem"
 }
