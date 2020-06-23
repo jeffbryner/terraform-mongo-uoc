@@ -44,14 +44,3 @@ resource "aws_security_group" "mongodb" {
   }
 }
 
-module "mongodb" {
-  source = "../../"
-
-  aws_region        = "us-east-2"
-  availability_zone = "us-east-2a"
-  instance_type     = "t2.micro"
-  volume_size       = "10"
-  key_name          = "${aws_key_pair.mongodb.key_name}"
-  private_key       = "${file("${path.module}/keys/mongodb")}"
-  security_groups   = ["${aws_security_group.mongodb.name}"]
-}
