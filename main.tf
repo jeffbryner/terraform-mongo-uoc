@@ -28,8 +28,8 @@ output "public_ip" {
   value = aws_eip.uoc_ip.public_ip
 }
 
-output "elb_dns_address" {
-  value = "${aws_elb.uoc_elb.dns_name}"
+output "alb_dns_address" {
+  value = "${aws_alb.uoc_alb.dns_name}"
 }
 
 data "aws_ami" "ubuntu" {
@@ -345,7 +345,7 @@ resource "aws_glue_catalog_table" "uoc_events_table" {
 }
 
 resource "aws_vpc" "mongo_uoc" {
-  cidr_block = "10.10.0.0/24"
+  cidr_block = "10.10.0.0/16"
   enable_dns_hostnames= "true"
 }
 
@@ -411,10 +411,16 @@ resource "aws_security_group" "mongo_uoc" {
   }
 }
 
-resource "aws_subnet" "mongo_uoc" {
+resource "aws_subnet" "mongo_uoc_1" {
   vpc_id            = aws_vpc.mongo_uoc.id
-  availability_zone = var.availability_zone
-  cidr_block        = "10.10.0.0/24"
+  availability_zone = var.availability_zone[0]
+  cidr_block        = "10.10.10.0/24"
+}
+
+resource "aws_subnet" "mongo_uoc_2" {
+  vpc_id            = aws_vpc.mongo_uoc.id
+  availability_zone = var.availability_zone[1]
+  cidr_block        = "10.10.20.0/24"
 }
 
 resource "aws_route_table" "mongo_uoc" {
@@ -431,33 +437,18 @@ resource "aws_route_table" "mongo_uoc" {
 }
 
 resource "aws_route_table_association" "mongo_uoc" {
-  subnet_id = aws_subnet.mongo_uoc.id
+  subnet_id = aws_subnet.mongo_uoc_1.id
   route_table_id = aws_route_table.mongo_uoc.id
 }
 
 
-resource "aws_elb" "uoc_elb" {
-  name = "uoc-elb"
+resource "aws_alb" "uoc_alb" {
+  name = "uoc-alb"
+  internal = false
+  load_balancer_type = "application"
 
-  subnets         = [aws_subnet.mongo_uoc.id]
+  subnets         = [aws_subnet.mongo_uoc_1.id,aws_subnet.mongo_uoc_2.id]
   security_groups = [aws_security_group.mongo_uoc.id]
-  instances       = [aws_instance.uoc_instance.id]
-
-  listener {
-    instance_port     = 80
-    instance_protocol = "http"
-    lb_port           = 80
-    lb_protocol       = "http"
-  }
-
-  listener {
-    instance_port      = 80
-    instance_protocol  = "tcp"
-    lb_port            = 443
-    lb_protocol        = "ssl"
-    ssl_certificate_id = var.tls_certificate_arn
-  }
-
   tags = {
     Terraform   = "true"
     Environment = "dev"
@@ -465,26 +456,36 @@ resource "aws_elb" "uoc_elb" {
   }
 }
 
-resource "aws_load_balancer_policy" "uoc" {
-  load_balancer_name = aws_elb.uoc_elb.name
-  policy_name        = "uocssl"
-  policy_type_name   = "SSLNegotiationPolicyType"
+resource "aws_alb_target_group" "uoc" {
+  name = "uoc"
+  port = 80
+  protocol = "HTTP"
+  vpc_id = aws_vpc.mongo_uoc.id
+  target_type = "instance"
 
-  policy_attribute {
-    name  = "Reference-Security-Policy"
-    value = "ELBSecurityPolicy-2016-08"
+}
+
+resource "aws_alb_listener" "uoc_alb_listener"{
+  load_balancer_arn = aws_alb.uoc_alb.arn
+  port              = "443"
+  protocol          = "HTTPS"
+  ssl_policy        = "ELBSecurityPolicy-2016-08"
+  certificate_arn   = var.tls_certificate_arn
+
+  default_action {
+    type             = "forward"
+    target_group_arn = aws_alb_target_group.uoc.arn
   }
-
 }
 
-resource "aws_load_balancer_listener_policy" "uoc_elb_listener_policies_443" {
-  load_balancer_name = aws_elb.uoc_elb.name
-  load_balancer_port = 443
 
-  policy_names = [
-    aws_load_balancer_policy.uoc.policy_name,
-  ]
+
+resource "aws_alb_target_group_attachment" "uoc_attachment"{
+  target_group_arn = aws_alb_target_group.uoc.arn
+  target_id = aws_instance.uoc_instance.id
+  port = 80
 }
+
 
 resource "aws_efs_file_system" "mongo_fs" {
   creation_token = "uoc_mongo_fs"
@@ -498,7 +499,7 @@ resource "aws_efs_file_system" "mongo_fs" {
 
 resource "aws_efs_mount_target" "mongo_fs" {
   file_system_id = aws_efs_file_system.mongo_fs.id
-  subnet_id      = aws_subnet.mongo_uoc.id
+  subnet_id      = aws_subnet.mongo_uoc_1.id
   security_groups = [aws_security_group.mongo_uoc.id]
 }
 
@@ -579,7 +580,7 @@ resource "aws_instance" "uoc_instance"{
   key_name               = var.key_name
   monitoring             = false
   vpc_security_group_ids = [aws_security_group.mongo_uoc.id]
-  subnet_id              = aws_subnet.mongo_uoc.id
+  subnet_id              = aws_subnet.mongo_uoc_1.id
   associate_public_ip_address = true
   iam_instance_profile = aws_iam_instance_profile.uoc_instance_profile.name
 
@@ -663,7 +664,7 @@ resource "aws_sagemaker_notebook_instance" "uoc-notebooks" {
     name            = "uoc-notebooks"
     role_arn        = "arn:aws:iam::717455710680:role/service-role/AmazonSageMaker-ExecutionRole-20200521T101682"
     security_groups = [aws_security_group.mongo_uoc.id]
-    subnet_id       = aws_subnet.mongo_uoc.id
+    subnet_id       = aws_subnet.mongo_uoc_1.id
     lifecycle_config_name = "uoc-libraries"
     tags            = {
         "name" = "uoc"

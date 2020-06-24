@@ -5,9 +5,9 @@ variable "aws_region"{
 }
 
 variable "availability_zone" {
-  type        = string
-  description = "AWS Availability Zone to use"
-  default     = "us-west-2a"
+  type        = list(string)
+  description = "AWS Availability Zones to use"
+  default     = ["us-west-2a","us-west-2b"]
 }
 
 variable "instance_type" {
