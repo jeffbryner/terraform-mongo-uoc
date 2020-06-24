@@ -133,17 +133,17 @@
     owner: "{{ aws_user }}"
     group: "{{ aws_user }}"
 
-- name: copy python env docker file
+- name: copy python env docker file (built by terraform)
   copy:
-    src: "python.env"
+    src: "/tmp/python.env"
     dest: "/opt/alerts/python.env"
     mode: 0644
     owner: "{{ aws_user }}"
     group: "{{ aws_user }}"
 
-- name: copy flask env docker file
+- name: copy flask env docker file (built by terraform)
   copy:
-    src: "flask.env"
+    src: "/tmp/flask.env"
     dest: "/opt/alerts/flask.env"
     mode: 0644
     owner: "{{ aws_user }}"
