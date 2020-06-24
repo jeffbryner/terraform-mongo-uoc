@@ -1,25 +1,19 @@
-variable "availability_zone" {
+variable "aws_region"{
   type        = string
-  description = "AWS Availability Zone to use"
-  default     = "us-west-2a"
+  description = "AWS region to use"
+  default     = "us-west-2"
+}
+
+variable "availability_zone" {
+  type        = list(string)
+  description = "AWS Availability Zones to use"
+  default     = ["us-west-2a","us-west-2b"]
 }
 
 variable "instance_type" {
   type        = string
-  description = "The AWS EC2 tier to use for the DB instances."
+  description = "The AWS EC2 tier to use for the instance."
   default     = "t2.small"
-}
-
-variable "volume_size" {
-  type        = string
-  description = "Size of the DB storage volume."
-  default     = "100"
-}
-
-variable "security_groups" {
-  type        = list
-  description = "List of security group names."
-  default     = []
 }
 
 variable "key_name" {
@@ -33,8 +27,30 @@ variable "aws_user"{
   description = "aws instance user name to connect with"
   default     = "ec2-user"
 }
+
 variable "private_key_path"{
   type        = string
-  description = "path to the filename for the private key to be used by ansible"
-  default     ="/Users/jeff/.ssh/jab.pem"
+  description = "full path to the filename for the private key to be used by ansible"
+  default     = "/Users/jeff/.ssh/jab.pem"
+}
+
+variable "dns_name" {
+  type        = string
+  description = "the dns name for this deployment (sent fo flask as SERVER_NAME)"
+}
+
+variable "tls_certificate_arn" {
+  type        = string
+  description = "The arn of the tls/ssl certificate to attach to the load balancer"
+}
+
+variable "oidc_client_id" {
+  type        = string
+  description = "The client ID given to you by your identity provider (IDP)"
+}
+
+variable "preferred_url_scheme" {
+  type        = string
+  description = "http for non ssl, https for ssl"
+  default     = "http"
 }

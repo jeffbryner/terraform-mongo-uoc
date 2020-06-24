@@ -24,14 +24,6 @@ output "caller_user" {
   value = "${data.aws_caller_identity.current.user_id}"
 }
 
-output "public_ip" {
-  value = aws_eip.uoc_ip.public_ip
-}
-
-output "alb_dns_address" {
-  value = "${aws_alb.uoc_alb.dns_name}"
-}
-
 data "aws_ami" "ubuntu" {
   most_recent = true
 
@@ -52,7 +44,6 @@ data "aws_ami" "ubuntu" {
 
   owners = ["099720109477"] # Canonical
 }
-
 data "aws_ami" "amazon-linux-2-ami" {
   most_recent = true
   owners = ["amazon"]
@@ -345,10 +336,9 @@ resource "aws_glue_catalog_table" "uoc_events_table" {
 }
 
 resource "aws_vpc" "mongo_uoc" {
-  cidr_block = "10.10.0.0/16"
+  cidr_block = "10.10.0.0/24"
   enable_dns_hostnames= "true"
 }
-
 resource "aws_internet_gateway" "mongo_uoc" {
   vpc_id = aws_vpc.mongo_uoc.id
 
@@ -370,35 +360,21 @@ resource "aws_security_group" "mongo_uoc" {
     # Please restrict your ingress to only necessary IPs and ports.
     # Opening to 0.0.0.0/0 can lead to security vulnerabilities.
     cidr_blocks = ["0.0.0.0/0"]
+  }
+ ingress {
+   # efs
+      from_port   = 2049
+      to_port     = 2049
+      protocol    = "tcp"
+      self = true
     }
   ingress {
-    # web
-    from_port   = 0
-    to_port     = 80
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-  ingress {
-    # web
-    from_port   = 0
-    to_port     = 443
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-  ingress {
-    # efs
-    from_port   = 2049
-    to_port     = 2049
-    protocol    = "tcp"
-    self = true
-  }
-  ingress {
     # mongo
-    from_port   = 0
-    to_port     = 27017
-    protocol    = "tcp"
-    self = true
-  }
+      from_port   = 0
+      to_port     = 27017
+      protocol    = "tcp"
+      self = true
+    }
   egress {
     from_port   = 0
     to_port     = 0
@@ -411,16 +387,10 @@ resource "aws_security_group" "mongo_uoc" {
   }
 }
 
-resource "aws_subnet" "mongo_uoc_1" {
+resource "aws_subnet" "mongo_uoc" {
   vpc_id            = aws_vpc.mongo_uoc.id
-  availability_zone = var.availability_zone[0]
-  cidr_block        = "10.10.10.0/24"
-}
-
-resource "aws_subnet" "mongo_uoc_2" {
-  vpc_id            = aws_vpc.mongo_uoc.id
-  availability_zone = var.availability_zone[1]
-  cidr_block        = "10.10.20.0/24"
+  availability_zone = var.availability_zone
+  cidr_block        = "10.10.0.0/24"
 }
 
 resource "aws_route_table" "mongo_uoc" {
@@ -437,55 +407,9 @@ resource "aws_route_table" "mongo_uoc" {
 }
 
 resource "aws_route_table_association" "mongo_uoc" {
-  subnet_id = aws_subnet.mongo_uoc_1.id
+  subnet_id = aws_subnet.mongo_uoc.id
   route_table_id = aws_route_table.mongo_uoc.id
 }
-
-
-resource "aws_alb" "uoc_alb" {
-  name = "uoc-alb"
-  internal = false
-  load_balancer_type = "application"
-
-  subnets         = [aws_subnet.mongo_uoc_1.id,aws_subnet.mongo_uoc_2.id]
-  security_groups = [aws_security_group.mongo_uoc.id]
-  tags = {
-    Terraform   = "true"
-    Environment = "dev"
-    Name = "uoc"
-  }
-}
-
-resource "aws_alb_target_group" "uoc" {
-  name = "uoc"
-  port = 80
-  protocol = "HTTP"
-  vpc_id = aws_vpc.mongo_uoc.id
-  target_type = "instance"
-
-}
-
-resource "aws_alb_listener" "uoc_alb_listener"{
-  load_balancer_arn = aws_alb.uoc_alb.arn
-  port              = "443"
-  protocol          = "HTTPS"
-  ssl_policy        = "ELBSecurityPolicy-2016-08"
-  certificate_arn   = var.tls_certificate_arn
-
-  default_action {
-    type             = "forward"
-    target_group_arn = aws_alb_target_group.uoc.arn
-  }
-}
-
-
-
-resource "aws_alb_target_group_attachment" "uoc_attachment"{
-  target_group_arn = aws_alb_target_group.uoc.arn
-  target_id = aws_instance.uoc_instance.id
-  port = 80
-}
-
 
 resource "aws_efs_file_system" "mongo_fs" {
   creation_token = "uoc_mongo_fs"
@@ -496,13 +420,11 @@ resource "aws_efs_file_system" "mongo_fs" {
     Name = "mongo_uoc"
   }
 }
-
 resource "aws_efs_mount_target" "mongo_fs" {
   file_system_id = aws_efs_file_system.mongo_fs.id
-  subnet_id      = aws_subnet.mongo_uoc_1.id
+  subnet_id      = aws_subnet.mongo_uoc.id
   security_groups = [aws_security_group.mongo_uoc.id]
 }
-
 resource "aws_iam_role" "uoc_instance_role" {
   name = "uoc_instance_role"
 
@@ -561,42 +483,33 @@ resource "aws_iam_role_policy" "uoc_instance_policy" {
       ],
       "Effect": "Allow",
       "Resource": "*"
-    },
-    {
-      "Action":[
-      "secretsmanager:GetSecretValue"
-      ],
-      "Effect": "Allow",
-      "Resource":"arn:aws:secretsmanager:*:*:secret:uoc*"
     }
   ]
 }
 EOF
 }
-
-resource "aws_instance" "uoc_instance"{
+resource "aws_instance" "mongo_instance"{
   ami                    = data.aws_ami.amazon-linux-2-ami.id
   instance_type          = var.instance_type
   key_name               = var.key_name
   monitoring             = false
   vpc_security_group_ids = [aws_security_group.mongo_uoc.id]
-  subnet_id              = aws_subnet.mongo_uoc_1.id
+  subnet_id              = aws_subnet.mongo_uoc.id
   associate_public_ip_address = true
   iam_instance_profile = aws_iam_instance_profile.uoc_instance_profile.name
+
 
   tags = {
     Terraform   = "true"
     Environment = "dev"
     Name = "mongo_uoc"
   }
-
   # ansible connection information
   connection {
     user        = var.aws_user
     host        = self.public_ip
     private_key = file(var.private_key_path)
   }
-
   provisioner "file" {
     source      = "provision/wait-for-cloud-init.sh"
     destination = "/tmp/wait-for-cloud-init.sh"
@@ -609,28 +522,13 @@ resource "aws_instance" "uoc_instance"{
     ]
   }
 
-  # provision the docker env files for containers to be picked up by ansible
-  provisioner "file" {
-    content     = templatefile("flask.env.tmpl",{
-      SERVER_NAME = var.dns_name,
-      AWS_DEFAULT_REGION = var.aws_region,
-      OIDC_CLIENT_ID = var.oidc_client_id,
-      PREFERRED_URL_SCHEME = var.preferred_url_scheme})
-    destination = "/tmp/flask.env"
-  }
-
-  provisioner "file" {
-    content     = templatefile("python.env.tmpl",{AWS_DEFAULT_REGION=var.aws_region})
-    destination = "/tmp/python.env"
-  }
-
   provisioner "ansible" {
     plays {
       playbook{
         file_path = "provision/playbook.yaml"
       }
       # https://docs.ansible.com/ansible/2.4/intro_inventory.html#hosts-and-groups
-      groups = ["uoc"]
+      groups = ["db-mongodb"]
       extra_vars = {
             efs_filesystem_address = aws_efs_file_system.mongo_fs.dns_name
       }
@@ -639,10 +537,6 @@ resource "aws_instance" "uoc_instance"{
       skip_install = false
     }
   }
-}
-
-resource "aws_eip" "uoc_ip" {
-  instance = aws_instance.uoc_instance.id
 }
 
 resource "aws_sagemaker_notebook_instance_lifecycle_configuration" "lc" {
@@ -659,12 +553,13 @@ EOT
 )
 }
 
+
 resource "aws_sagemaker_notebook_instance" "uoc-notebooks" {
     instance_type   = "ml.t2.medium"
     name            = "uoc-notebooks"
     role_arn        = "arn:aws:iam::717455710680:role/service-role/AmazonSageMaker-ExecutionRole-20200521T101682"
     security_groups = [aws_security_group.mongo_uoc.id]
-    subnet_id       = aws_subnet.mongo_uoc_1.id
+    subnet_id       = aws_subnet.mongo_uoc.id
     lifecycle_config_name = "uoc-libraries"
     tags            = {
         "name" = "uoc"
